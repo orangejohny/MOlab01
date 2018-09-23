@@ -63,7 +63,7 @@ class Matrix {
 
   auto simplex_method() -> void;
   auto optimization(std::vector<char>& basis, std::vector<char>& free) -> bool;
-  auto out() -> void;
+  auto out(std::vector<char>& basis, std::vector<char>& free) -> void;
 };
 
 template <typename T>
@@ -132,8 +132,9 @@ auto Matrix<T>::optimization(std::vector<char>& basis, std::vector<char>& free)
     -> bool {
   while (true) {
     // trying to find positive value in F() row
-    rIt<T> positive_ptr = std::find_if(row_begin(rows - 1), row_end(rows - 1),
-                                       [](T elem) { return elem >= 0; });
+    rIt<T> positive_ptr =
+        std::find_if(std::next(row_begin(rows - 1)), row_end(rows - 1),
+                     [](T elem) { return elem > 0; });
 
     if (positive_ptr == row_end(rows - 1)) {
       return true;  // solution is optimal
@@ -142,7 +143,7 @@ auto Matrix<T>::optimization(std::vector<char>& basis, std::vector<char>& free)
     size_t pivot_column = positive_ptr.get_index().second;
 
     if (std::find_if(column_begin(pivot_column), column_end(pivot_column),
-                     [](T elem) { return elem >= 0; }) ==
+                     [](T elem) { return elem > 0; }) ==
         column_end(pivot_column)) {
       return false;  // function is unlimited, no optimal solution
     }
@@ -185,17 +186,24 @@ auto Matrix<T>::optimization(std::vector<char>& basis, std::vector<char>& free)
     }
 
     std::swap(basis[r], free[k]);
-    out();
+    out(basis, free);
     std::cout << std::endl;
   }
 }
 
 template <typename T>
-auto Matrix<T>::out() -> void {
+auto Matrix<T>::out(std::vector<char>& basis, std::vector<char>& free) -> void {
+  for (auto i : free) {
+    std::cout.width(9);
+    std::cout << "x" << i;
+  }
+  std::cout << std::endl;
+
   for (size_t i = 0; i < rows; ++i) {
+    std::cout << "x" << basis[i];
     for (size_t j = 0; j < columns; ++j) {
-      std::cout.precision(2);
-      std::cout.width(8);
+      std::cout.precision(4);
+      std::cout.width(10);
       std::cout << po_arr[i][j];
     }
     std::cout << std::endl;

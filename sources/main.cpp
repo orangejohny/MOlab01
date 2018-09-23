@@ -20,9 +20,11 @@ int main() {
   std::vector<char> basis{'4', '5', '6', 'F'};
   std::vector<char> free_{'S', '1', '2', '3'};
 
-  matrix.optimization(basis, free_);
-
-  //matrix.out();
+  if (matrix.optimization(basis, free_) == true) {
+    std::cout << "Found the most optimal solution!\n";
+  } else {
+    std::cout << "Function is unlimited!\n";
+  }
 
   return 0;
 }
