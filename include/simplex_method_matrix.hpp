@@ -46,6 +46,7 @@ class splx_matrix : public Matrix<T> {
  private:
   std::vector<std::string> basis;
   std::vector<std::string> free;
+  std::vector<T> sign;  // vector for sign of limitation
   bool is_to_min;
   size_t num_of_free;
   size_t num_of_basis;
@@ -270,7 +271,7 @@ auto splx_matrix<T>::load_C(std::string file_C) -> std::vector<T> {
   return std::move(vec_c);
 }
 
-// less then <= b
+// before each element must be a prefix: -1 for "more than" and 1 for "less than"
 template <typename T>
 auto splx_matrix<T>::load_B(std::string file_B) -> std::vector<T> {
   std::ifstream fin_B(file_B);
@@ -279,8 +280,13 @@ auto splx_matrix<T>::load_B(std::string file_B) -> std::vector<T> {
   }
 
   std::vector<T> vec_b;
-  std::copy(std::istream_iterator<T>(fin_B), std::istream_iterator<T>{},
-            std::back_inserter(vec_b));
+  std::istream_iterator<T> iit(fin_B);
+  std::istream_iterator<T> eof;
+  
+  while(iit != eof) {
+    sign.push_back(*iit);
+    vec_b.push_back(*iit++ * *iit++);
+  }
 
   num_of_basis = vec_b.size();
   fin_B.close();
@@ -293,10 +299,16 @@ auto splx_matrix<T>::load_A(std::string file_A) -> Matrix<T> {
   if (!fin_A.good()) {
     throw std::ios::failure("Can't read from file A!");
   }
+ 
+  Matrix<T> matrix(num_of_basis, num_of_free);
+  std::istream_iterator<T> iit(fin_A);
+  std::istream_iterator<T> eof;
 
-  Matrix<T> matrix(std::istream_iterator<T>(fin_A), std::istream_iterator<T>{},
-                   this->num_of_basis, this->num_of_free);
-  // if not "less then" we should modify particular rows
+  for (auto i = 0; i < num_of_basis; ++i) {
+    for (auto j = 0; j < num_of_free; ++j) {
+      matrix[i][j] = sign[i] * (*(iit++));
+    }
+  }
 
   fin_A.close();
   return std::move(matrix);
