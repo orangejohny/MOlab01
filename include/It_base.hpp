@@ -39,15 +39,15 @@ class It_base : public std::iterator<std::bidirectional_iterator_tag, T> {
     return (*this);
   }
 
-  template <typename T_>
-  friend bool operator==(const It_base<T_>& lhs, const It_base<T_>& rhs) {
+  //template <typename T_>
+  friend bool operator==(const It_base<T>& lhs, const It_base<T>& rhs) {
     return (lhs.ptr == rhs.ptr && lhs.rows == rhs.rows &&
             lhs.columns == rhs.columns && lhs.row == rhs.row &&
             lhs.column == rhs.column);
   }
 
-  template <typename T_>
-  friend bool operator!=(const It_base<T_>& lhs, const It_base<T_>& rhs) {
+  //template <typename T_>
+  friend bool operator!=(const It_base<T>& lhs, const It_base<T>& rhs) {
     return !(lhs == rhs);
   }
 
@@ -69,8 +69,8 @@ class It_base : public std::iterator<std::bidirectional_iterator_tag, T> {
     return &(ptr[row][column]);
   }
 
-  template <typename T_>
-  friend void swap(It_base<T_>& lhs, It_base<T_>& rhs) {
+  //template <typename T_>
+  friend void swap(It_base<T>& lhs, It_base<T>& rhs) {
     std::swap(lhs.ptr, rhs.ptr);
     std::swap(lhs.row, rhs.row);
     std::swap(lhs.rows, rhs.rows);

@@ -11,28 +11,39 @@
 
 template <typename T>
 class Matrix {
- private:
+ protected:
   T** po_arr;
   size_t rows;
   size_t columns;
 
   void create_matrix(size_t rows_, size_t columns_);
+  void delete_matrix();
 
  public:
+  typedef rIt<T> const_iterator;
   Matrix() : po_arr{nullptr}, rows{0}, columns{0} {};
   Matrix(size_t rows_, size_t columns_);
-  Matrix(Matrix<T>& other);
+  Matrix(const Matrix<T>& other);
+  Matrix(Matrix<T>&& other);
   Matrix(T** po_arr_, size_t rows_, size_t columns_);
   template <typename InputIt>
   Matrix(InputIt begin, InputIt end, size_t rows_, size_t columns_);
   ~Matrix();
 
   auto operator=(Matrix<T> const& other) -> void;
+  auto operator[](size_t index) -> T*& { return po_arr[index]; }
 
   auto swap(Matrix<T>& other) -> void;
 
   auto begin() -> rIt<T> { return rIt<T>(po_arr, 0, 0, rows, columns); }
+  const_iterator cbegin() const {
+    return const_iterator(po_arr, 0, 0, rows, columns);
+  }
+
   auto end() -> rIt<T> { return rIt<T>(po_arr, rows, 0, rows, columns); }
+  const_iterator cend() const {
+    return const_iterator(po_arr, rows, 0, rows, columns);
+  }
 
   auto rbegin() -> rIt<T> {
     return rIt<T>(po_arr, rows - 1, columns - 1, rows, columns);
@@ -60,10 +71,6 @@ class Matrix {
 
   auto get_rows() -> size_t { return rows; }
   auto get_columns() -> size_t { return columns; }
-
-  auto simplex_method() -> void;
-  auto optimization(std::vector<char>& basis, std::vector<char>& free) -> bool;
-  auto out(std::vector<char>& basis, std::vector<char>& free) -> void;
 };
 
 template <typename T>
@@ -99,14 +106,23 @@ Matrix<T>::Matrix(size_t rows_, size_t columns_) {
 }
 
 template <typename T>
-Matrix<T>::Matrix(Matrix<T>& other) {
+Matrix<T>::Matrix(const Matrix<T>& other) {
   this->create_matrix(other.rows, other.columns);
-  std::copy(other.begin(), other.end(), this->begin());
+  std::copy(other.cbegin(), other.cend(), begin());
+}
+
+template <typename T>
+Matrix<T>::Matrix(Matrix<T>&& other) {
+  po_arr = other.po_arr;
+  columns = other.columns;
+  rows = other.rows;
+
+  other.po_arr = nullptr;
 }
 
 template <typename T>
 auto Matrix<T>::operator=(Matrix<T> const& other) -> void {
-  Matrix<T>{other}.swap(*this);
+  Matrix<T>(other).swap(*this);
 }
 
 template <typename T>
@@ -118,96 +134,16 @@ auto Matrix<T>::swap(Matrix<T>& other) -> void {
 
 template <typename T>
 Matrix<T>::~Matrix() {
+  delete_matrix();
+}
+
+template <typename T>
+void Matrix<T>::delete_matrix() {
+  if (po_arr == nullptr) return;
   for (size_t i = 0; i < rows; i++) {
     delete[] po_arr[i];
   }
   delete[] po_arr;
-}
-
-template <typename T>
-auto Matrix<T>::simplex_method() -> void {}
-
-template <typename T>
-auto Matrix<T>::optimization(std::vector<char>& basis, std::vector<char>& free)
-    -> bool {
-  while (true) {
-    // trying to find positive value in F() row
-    rIt<T> positive_ptr =
-        std::find_if(std::next(row_begin(rows - 1)), row_end(rows - 1),
-                     [](T elem) { return elem > 0; });
-
-    if (positive_ptr == row_end(rows - 1)) {
-      return true;  // solution is optimal
-    }
-
-    size_t pivot_column = positive_ptr.get_index().second;
-
-    if (std::find_if(column_begin(pivot_column), column_end(pivot_column),
-                     [](T elem) { return elem > 0; }) ==
-        column_end(pivot_column)) {
-      return false;  // function is unlimited, no optimal solution
-    }
-
-    T min_ratio = std::numeric_limits<T>::max();
-    cIt<T> pivot_elem;
-    for (auto i = column_begin(0), j = column_begin(pivot_column);
-         i != column_end(0); ++i, ++j) {
-      auto ratio = (*i) / (*j);
-      if (ratio > 0 && ratio < min_ratio) {
-        min_ratio = ratio;
-        pivot_elem = j;
-      }
-    }
-
-    auto [r, k] = pivot_elem.get_index();
-    Matrix<T> tmp(*this);
-
-    po_arr[r][k] = 1.0 / tmp.po_arr[r][k];  // 1st formula
-
-    for (size_t j = 0; j < columns; ++j) {  // 2nd formula
-      if (j != k) {
-        po_arr[r][j] = tmp.po_arr[r][j] / tmp.po_arr[r][k];
-      }
-    }
-
-    for (size_t i = 0; i < rows; ++i) {  // 3rd formula
-      if (i != r) {
-        po_arr[i][k] = -tmp.po_arr[i][k] / tmp.po_arr[r][k];
-      }
-    }
-
-    for (size_t i = 0; i < rows; ++i) {  // 4th formula
-      for (size_t j = 0; j < columns; ++j) {
-        if (i != r && j != k) {
-          po_arr[i][j] = tmp.po_arr[i][j] -
-                         tmp.po_arr[i][k] * tmp.po_arr[r][j] / tmp.po_arr[r][k];
-        }
-      }
-    }
-
-    std::swap(basis[r], free[k]);
-    out(basis, free);
-    std::cout << std::endl;
-  }
-}
-
-template <typename T>
-auto Matrix<T>::out(std::vector<char>& basis, std::vector<char>& free) -> void {
-  for (auto i : free) {
-    std::cout.width(9);
-    std::cout << "x" << i;
-  }
-  std::cout << std::endl;
-
-  for (size_t i = 0; i < rows; ++i) {
-    std::cout << "x" << basis[i];
-    for (size_t j = 0; j < columns; ++j) {
-      std::cout.precision(4);
-      std::cout.width(10);
-      std::cout << po_arr[i][j];
-    }
-    std::cout << std::endl;
-  }
 }
 
 #endif
