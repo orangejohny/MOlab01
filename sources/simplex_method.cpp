@@ -17,6 +17,10 @@ int main(int argc, char* argv[]) {
     std::cout << e.what() << std::endl;
   }
 
+
+  std::cout << "Canonsical simplex table:\n";
+  matrix.out();
+  std::cout << std::endl;
   if (auto c = matrix.simplex_method(); c == 0) {
     std::cout << "Found the most optimal solution!\n";
     matrix.show_answer();

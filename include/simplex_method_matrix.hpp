@@ -21,11 +21,18 @@ class splx_matrix : public Matrix<T> {
   using Matrix<T>::create_matrix;
   using Matrix<T>::delete_matrix;
 
-  splx_matrix() : Matrix<T>(), num_of_basis{0}, num_of_free{0} {};
+  splx_matrix()
+      : Matrix<T>(), num_of_basis{0}, num_of_free{0}, is_to_min{true} {};
   splx_matrix(size_t rows_, size_t columns_) : Matrix<T>(rows_, columns_){};
-  splx_matrix(splx_matrix<T>& other) : Matrix<T>(other){};
+  splx_matrix(const splx_matrix<T>& other)
+      : Matrix<T>(other),
+        basis{other.basis},
+        free{other.free},
+        is_to_min{other.is_to_min},
+        num_of_free{other.num_of_free},
+        num_of_basis{other.num_of_basis} {};
   splx_matrix(T** po_arr_, size_t rows_, size_t columns_)
-      : Matrix<T>(po_arr_, rows_, columns_){};
+      : Matrix<T>(po_arr_, rows_, columns_), num_of_basis{0}, num_of_free{0}, is_to_min{true}{};
   template <typename InputIt>
   splx_matrix(InputIt begin, InputIt end, size_t rows_, size_t columns_)
       : Matrix<T>(begin, end, rows_, columns_){};
@@ -34,6 +41,7 @@ class splx_matrix : public Matrix<T> {
       -> void;
   auto simplex_method() -> int;
   auto show_answer() -> void;
+  auto out() -> void;
 
  private:
   std::vector<std::string> basis;
@@ -44,7 +52,6 @@ class splx_matrix : public Matrix<T> {
 
   auto form_basis_solution() -> int;
   auto optimization() -> int;
-  auto out() -> void;
   auto find_pivot_elem(size_t pivot_column) -> cIt<T>;
   auto jordanic_exception(cIt<T> pivot_elem) -> void;
   auto load_A(std::string file_A) -> Matrix<T>;
@@ -176,6 +183,7 @@ auto splx_matrix<T>::out() -> void {
     std::cout.width(10);
     std::cout << i;
   }
+
   std::cout << std::endl;
 
   for (size_t i = 0; i < rows; ++i) {
