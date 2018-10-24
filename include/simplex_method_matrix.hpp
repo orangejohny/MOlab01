@@ -1,6 +1,7 @@
 #ifndef __SIMPLEX_METHOD_MATRIX_HPP
 #define __SIMPLEX_METHOD_MATRIX_HPP
 
+#include <cmath>
 #include <fstream>
 #include <iterator>
 #include <matrix.hpp>
@@ -32,7 +33,10 @@ class splx_matrix : public Matrix<T> {
         num_of_free{other.num_of_free},
         num_of_basis{other.num_of_basis} {};
   splx_matrix(T** po_arr_, size_t rows_, size_t columns_)
-      : Matrix<T>(po_arr_, rows_, columns_), num_of_basis{0}, num_of_free{0}, is_to_min{true}{};
+      : Matrix<T>(po_arr_, rows_, columns_),
+        num_of_basis{0},
+        num_of_free{0},
+        is_to_min{true} {};
   template <typename InputIt>
   splx_matrix(InputIt begin, InputIt end, size_t rows_, size_t columns_)
       : Matrix<T>(begin, end, rows_, columns_){};
@@ -54,6 +58,7 @@ class splx_matrix : public Matrix<T> {
   auto form_basis_solution() -> int;
   auto optimization() -> int;
   auto find_pivot_elem(size_t pivot_column) -> cIt<T>;
+  auto find_pivot_elem_for_basis(size_t pivot_column) -> cIt<T>;
   auto jordanic_exception(cIt<T> pivot_elem) -> void;
   auto load_A(std::string file_A) -> Matrix<T>;
   auto load_B(std::string file_B) -> std::vector<T>;
@@ -77,9 +82,18 @@ template <typename T>
 auto splx_matrix<T>::optimization() -> int {
   while (true) {
     // trying to find positive value in F() row
-    rIt<T> positive_ptr =
+    rIt<T> positive_ptr = row_end(rows - 1);
+    T max_elem = std::numeric_limits<T>::min();
+    for (auto it = std::next(row_begin(rows - 1)); it != row_end(rows - 1);
+         ++it) {
+      if (*it > 0 && fabs(*it) > max_elem) {
+        max_elem = *it;
+        positive_ptr = it;
+      }
+    }
+    /* rIt<T> positive_ptr =
         std::find_if(std::next(row_begin(rows - 1)), row_end(rows - 1),
-                     [](T elem) { return elem > 0; });
+                     [](T elem) { return elem > 0; }); */
 
     if (positive_ptr == row_end(rows - 1)) {
       return 0;  // solution is optimal
@@ -96,6 +110,7 @@ auto splx_matrix<T>::optimization() -> int {
     auto pivot_elem = find_pivot_elem(pivot_column);
     jordanic_exception(pivot_elem);
 
+    std::cout << "From optimization of solution:\n";
     out();
     std::cout << std::endl;
   }
@@ -115,17 +130,32 @@ auto splx_matrix<T>::form_basis_solution() -> int {
 
     size_t negative_row = negative_it_free.get_index().first;
 
+    // in some examples we need to use this algorithm
+    /*  T min_ratio = std::numeric_limits<T>::max();
+    rIt<T> pivot_column = row_end(negative_row);
+    for (auto i = std::next(row_begin(negative_row)),
+              j = std::next(row_begin(rows - 1));
+         i != row_end(negative_row); ++i, ++j) {
+      auto ratio = (*j) / (*i);
+      if (*i < 0 && (ratio) < (min_ratio)) {
+        min_ratio = ratio;
+        pivot_column = i;
+      }
+    } */
+
     rIt<T> pivot_column =
         std::find_if(std::next(row_begin(negative_row)), row_end(negative_row),
                      [](T elem) { return elem < 0; });
+   
 
     if (pivot_column == row_end(negative_row)) {
       return 1;  // no solution
     }
 
-    auto pivot_elem = find_pivot_elem(pivot_column.get_index().second);
+    auto pivot_elem = find_pivot_elem_for_basis(pivot_column.get_index().second);
     jordanic_exception(pivot_elem);
 
+    std::cout << "From forming basis solution:\n";
     out();
     std::cout << std::endl;
   }
@@ -136,9 +166,25 @@ auto splx_matrix<T>::find_pivot_elem(size_t pivot_column) -> cIt<T> {
   T min_ratio = std::numeric_limits<T>::max();
   cIt<T> pivot_elem;
   for (auto i = column_begin(0), j = column_begin(pivot_column);
-       i != column_end(0); ++i, ++j) {
+       i != std::prev(column_end(0)); ++i, ++j) {
     auto ratio = (*i) / (*j);
-    if (ratio > 0 && ratio < min_ratio) {
+    if (ratio >= 0 && ratio <= min_ratio && *j > 0) {
+      min_ratio = ratio;
+      pivot_elem = j;
+    }
+  }
+
+  return pivot_elem;
+}
+
+template <typename T>
+auto splx_matrix<T>::find_pivot_elem_for_basis(size_t pivot_column) -> cIt<T> {
+  T min_ratio = std::numeric_limits<T>::max();
+  cIt<T> pivot_elem;
+  for (auto i = column_begin(0), j = column_begin(pivot_column);
+       i != std::prev(column_end(0)); ++i, ++j) {
+    auto ratio = (*i) / (*j);
+    if (ratio >= 0 && ratio <= min_ratio) {
       min_ratio = ratio;
       pivot_elem = j;
     }
@@ -271,7 +317,8 @@ auto splx_matrix<T>::load_C(std::string file_C) -> std::vector<T> {
   return std::move(vec_c);
 }
 
-// before each element must be a prefix: -1 for "more than" and 1 for "less than"
+// before each element must be a prefix: -1 for "more than" and 1 for "less
+// than"
 template <typename T>
 auto splx_matrix<T>::load_B(std::string file_B) -> std::vector<T> {
   std::ifstream fin_B(file_B);
@@ -282,8 +329,8 @@ auto splx_matrix<T>::load_B(std::string file_B) -> std::vector<T> {
   std::vector<T> vec_b;
   std::istream_iterator<T> iit(fin_B);
   std::istream_iterator<T> eof;
-  
-  while(iit != eof) {
+
+  while (iit != eof) {
     sign.push_back(*iit);
     vec_b.push_back(*iit++ * *iit++);
   }
@@ -299,7 +346,7 @@ auto splx_matrix<T>::load_A(std::string file_A) -> Matrix<T> {
   if (!fin_A.good()) {
     throw std::ios::failure("Can't read from file A!");
   }
- 
+
   Matrix<T> matrix(num_of_basis, num_of_free);
   std::istream_iterator<T> iit(fin_A);
   std::istream_iterator<T> eof;
