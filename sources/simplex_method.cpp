@@ -15,6 +15,7 @@ int main(int argc, char* argv[]) {
                      std::string(argv[3]));
   } catch (std::ios::failure& e) {
     std::cout << e.what() << std::endl;
+    return 1;
   }
 
 
